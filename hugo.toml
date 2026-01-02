@@ -1,4 +1,31 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
-title = 'My New Hugo Site'
-theme = 'ananke'
+title = 'Hans Yu'
+theme = 'papermod'
+
+[params.profileMode]
+enabled = true
+title = 'Hans Yu'
+subtitle = 'From fluid mechanics to software and data.'
+imageUrl = 'ASE_square.jpg'
+
+[[menus.main]]
+name = 'Home'
+pageRef = '/'
+weight = 10
+[[menus.main]]
+name = 'Notes'
+pageRef = '/blog'
+weight = 20
+[[menus.main]]
+name = 'Books'
+pageRef = '/books'
+weight = 30
+[[menus.main]]
+name = 'Code'
+pageRef = '/code'
+weight = 40
+[[menus.main]]
+name = 'About'
+pageRef = '/about'
+weight = 50
