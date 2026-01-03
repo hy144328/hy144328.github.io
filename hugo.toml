@@ -18,6 +18,24 @@ pageRef = '/collections'
 weight = 30
 
 [[menus.main]]
+name = 'Books'
+pageRef = '/collections/books'
+parent = 'Collections'
+weight = 31
+
+[[menus.main]]
+name = 'Movies'
+pageRef = '/collections/movies'
+parent = 'Collections'
+weight = 32
+
+[[menus.main]]
+name = 'TV shows'
+pageRef = '/collections/tv-shows'
+parent = 'Collections'
+weight = 33
+
+[[menus.main]]
 name = 'Projects'
 pageRef = '/projects'
 weight = 40
