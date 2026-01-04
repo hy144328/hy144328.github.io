@@ -60,7 +60,7 @@ path = 'github.com/theNewDynamic/gohugo-theme-ananke/v2'
 name = 'Hans Yu'
 image = 'ASE_square.jpg'
 headline = 'From fluid mechanics to software and data.'
-bio = 'Ein Teil jener Kraft, die stets das Gute will und stets das Böse schafft.'
+bio = 'Software Engineer @ STACKIT. Previously, Data Engineer @ Tesla. Education: BSc, MSc @ RWTH Aachen; PhD @ University of Cambridge.'
 
 [params.homepage]
 showRecent = true
