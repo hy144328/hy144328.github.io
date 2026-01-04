@@ -4,13 +4,14 @@ showDate = false
 showPagination = false
 showReadingTime = false
 showWordCount = false
+title = 'About'
 +++
-## About me
-
 >   Les grandes personnes aiment les chiffres.
 >   Quand vous leur parlez d’un nouvel ami, elles ne vous questionnent jamais sur l’essentiel.
 
 – Le Petit Prince, Antoine de Saint-Exupéry
+
+## About me
 
 My name is Hans, and I am currently a PhD student in Engineering.
 I am a kid of the nineties who has watched too much TV.
