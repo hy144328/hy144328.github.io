@@ -28,12 +28,14 @@ package main
 
 import (
 	"bufio"
+    "bytes"
 	"io"
 	"strconv"
 	"strings"
 )
 
 const maxCities = 10000
+const noRegisters = 1048576
 
 func run0(r io.Reader) map[string]*Statistics[float64] {
 	scanner := bufio.NewScanner(r)
@@ -96,7 +98,7 @@ type Statistics[T any] struct {
 The implementation is straightforward:
 
 1.  Iterate over lines. (`bufio.Scanner`)
-2.  Parse city name and temperature. (`strings.Split()`, `strconvParseFloat()`)
+2.  Parse city name and temperature. (`strings.Split()`, `strconv.ParseFloat()`)
 3.  Compare and set values. (`counts`, `maxs`, `mins`, `sums`)
 
 Intuitively, I decided to provide a separate data structure for each metric, i.e. `counts`, `maxs`, `mins`, `sums`.
@@ -105,27 +107,37 @@ How bad will this be?
 
 ```
 File: one-billion-row-challenge-golang.test
-Build ID: d5df05dd99e5d2dcd493355c59cdbeec02a734c2
+Build ID: 72bca091f466609dc907466886cde8910df298d4
 Type: cpu
-Time: 2026-01-14 14:32:22 CET
-Duration: 256.32s, Total samples = 265.86s (103.72%)
-Showing nodes accounting for 247.03s, 92.92% of 265.86s total
-Dropped 331 nodes (cum <= 1.33s)
+Time: 2026-01-15 21:20:22 CET
+Duration: 143.67s, Total samples = 154.48s (107.52%)
+Showing nodes accounting for 145s, 93.86% of 154.48s total
+Dropped 298 nodes (cum <= 0.77s)
       flat  flat%   sum%        cum   cum%
-    30.40s 11.43% 11.43%     79.23s 29.80%  runtime.mapassign_faststr
-    26.29s  9.89% 21.32%     26.29s  9.89%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
-    17.40s  6.54% 27.87%     17.44s  6.56%  strconv.readFloat
-    17.23s  6.48% 34.35%     51.38s 19.33%  runtime.mapaccess1_faststr
-    13.94s  5.24% 39.59%     13.94s  5.24%  aeshashbody
-    11.99s  4.51% 44.10%     11.99s  4.51%  memeqbody
-     8.60s  3.23% 47.34%      8.60s  3.23%  runtime.nextFreeFast (inline)
-     8.37s  3.15% 50.49%     48.72s 18.33%  strings.genSplit
-     7.43s  2.79% 53.28%      7.43s  2.79%  strconv.atof64exact
-     7.29s  2.74% 56.02%    256.32s 96.41%  github.com/hy144328/one-billion-row-challenge-golang.run0
+         0     0%     0%    144.31s 93.42%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun0
+     2.67s  1.73%  1.73%    144.31s 93.42%  github.com/hy144328/one-billion-row-challenge-golang.run0
+         0     0%  1.73%    144.31s 93.42%  testing.(*B).run1.func1
+         0     0%  1.73%    144.31s 93.42%  testing.(*B).runN
+    18.34s 11.87% 13.60%     45.30s 29.32%  runtime.mapassign_faststr
+    12.61s  8.16% 21.76%     31.56s 20.43%  runtime.mapaccess1_faststr
+     0.08s 0.052% 21.82%     30.35s 19.65%  strings.Split (inline)
+     3.91s  2.53% 24.35%     30.27s 19.59%  strings.genSplit
+     2.03s  1.31% 25.66%     21.95s 14.21%  runtime.mallocgc
+     0.50s  0.32% 25.98%     15.77s 10.21%  strconv.ParseFloat
+    15.73s 10.18% 36.17%     15.73s 10.18%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.55s  0.36% 36.52%     15.27s  9.88%  strconv.parseFloatPrefix
+     1.37s  0.89% 37.41%     14.72s  9.53%  strconv.atof64
+     0.95s  0.61% 38.02%     14.36s  9.30%  runtime.makeslice
+     2.43s  1.57% 39.60%     12.08s  7.82%  runtime.mallocgcSmallScanNoHeader
+         0     0% 39.60%     10.62s  6.87%  bufio.(*Scanner).Text (inline)
+     1.03s  0.67% 40.26%     10.62s  6.87%  runtime.slicebytetostring
+     9.07s  5.87% 46.14%      9.07s  5.87%  memeqbody
+     0.04s 0.026% 46.16%      9.06s  5.86%  runtime.systemstack
+     1.65s  1.07% 47.23%      8.04s  5.20%  bufio.(*Scanner).Scan
 ```
 
-The program takes 256.32 seconds.
-It spends almost 30% on assigning to hash maps, and almost 20% on accessing from hash maps.
+The program takes 143.67 seconds.
+It spends almost 30% on assigning to hash maps, and over 20% on accessing from hash maps.
 Let us do something about this.
 
 ## Optimization #1: Row-oriented data.
@@ -167,33 +179,44 @@ func run1(r io.Reader) map[string]*Statistics[float64] {
 }
 ```
 
-There is a single data structure, `res`, to store all metrics.
+There is a single data structure, `Statistics`, to store all metrics.
+`Statistics` is generic because I want to leave the option open for later to optimize data types.
 Note that I am using pointers with `Statistics` in order to reduce allocation overhead on access and assignment.
 
 ```
 File: one-billion-row-challenge-golang.test
-Build ID: d5df05dd99e5d2dcd493355c59cdbeec02a734c2
+Build ID: 72bca091f466609dc907466886cde8910df298d4
 Type: cpu
-Time: 2026-01-14 14:36:39 CET
-Duration: 189.98s, Total samples = 202.43s (106.56%)
-Showing nodes accounting for 181.07s, 89.45% of 202.43s total
-Dropped 332 nodes (cum <= 1.01s)
+Time: 2026-01-15 21:22:46 CET
+Duration: 92.23s, Total samples = 104.79s (113.61%)
+Showing nodes accounting for 94.13s, 89.83% of 104.79s total
+Dropped 302 nodes (cum <= 0.52s)
       flat  flat%   sum%        cum   cum%
-    21.19s 10.47% 10.47%     21.32s 10.53%  strconv.readFloat
-    10.58s  5.23% 15.69%     10.58s  5.23%  runtime.nextFreeFast (inline)
-     9.84s  4.86% 20.56%     60.86s 30.06%  strings.genSplit
-     9.48s  4.68% 25.24%      9.48s  4.68%  strconv.atof64exact
-     9.32s  4.60% 29.84%     35.95s 17.76%  runtime.mapaccess2_faststr
-     8.88s  4.39% 34.23%      8.88s  4.39%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
-     8.44s  4.17% 38.40%    191.57s 94.64%  github.com/hy144328/one-billion-row-challenge-golang.run1
-     7.54s  3.72% 42.12%     29.82s 14.73%  runtime.mallocgcSmallScanNoHeader
-     6.99s  3.45% 45.58%      6.99s  3.45%  indexbytebody
-     6.73s  3.32% 48.90%      6.73s  3.32%  internal/runtime/syscall.Syscall6
+         0     0%     0%     92.99s 88.74%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun1
+     3.39s  3.24%  3.24%     92.99s 88.74%  github.com/hy144328/one-billion-row-challenge-golang.run1
+         0     0%  3.24%     92.99s 88.74%  testing.(*B).run1.func1
+         0     0%  3.24%     92.99s 88.74%  testing.(*B).runN
+     0.05s 0.048%  3.28%     33.80s 32.25%  strings.Split (inline)
+     3.67s  3.50%  6.78%     33.75s 32.21%  strings.genSplit
+     5.75s  5.49% 12.27%     22.89s 21.84%  runtime.mapaccess2_faststr
+     2.41s  2.30% 14.57%     21.14s 20.17%  runtime.mallocgc
+     0.58s  0.55% 15.13%     17.01s 16.23%  strconv.ParseFloat
+     0.43s  0.41% 15.54%     16.43s 15.68%  strconv.parseFloatPrefix
+     1.60s  1.53% 17.06%        16s 15.27%  strconv.atof64
+        1s  0.95% 18.02%     15.92s 15.19%  runtime.makeslice
+     2.95s  2.82% 20.83%     12.93s 12.34%  runtime.mallocgcSmallScanNoHeader
+     0.02s 0.019% 20.85%     10.63s 10.14%  runtime.systemstack
+     8.08s  7.71% 28.56%      8.17s  7.80%  strconv.readFloat
+     0.10s 0.095% 28.66%      8.04s  7.67%  bufio.(*Scanner).Text (inline)
+     0.94s   0.9% 29.55%      7.94s  7.58%  runtime.slicebytetostring
+     1.17s  1.12% 30.67%      7.92s  7.56%  strings.Count
+     0.01s 0.0095% 30.68%      7.87s  7.51%  runtime.gcBgMarkWorker
+     1.97s  1.88% 32.56%      7.85s  7.49%  bufio.(*Scanner).Scan
 ```
 
-The program takes 189.98 seconds, which is a 26% improvement!
-Accessing from hash maps takes 35.95 seconds, which is a 30% improvement.
-Assignment to hash maps does not even show up anymore in the top ten.
+The program takes 92.23 seconds, which is a 36% improvement.
+Accessing from hash maps takes 22.89 seconds, which is a 27% improvement.
+Assignment to hash maps does not even show up anymore in the top twenty.
 
 ## Optimization #2: Floating-point arithmetics.
 
@@ -209,21 +232,12 @@ func run2(r io.Reader) map[string]*Statistics[int] {
 		words := strings.Split(lineIt, ";")
 
 		city := words[0]
-		word1 := words[1]
-		word1len := len(word1)
-
-		sgn := 1
-		if word1[0] == '-' {
-			sgn = -1
+		var temperature int
+		if words[1][0] == '-' {
+			temperature = -parseDigitsFromString(words[1][1:])
+		} else {
+			temperature = parseDigitsFromString(words[1])
 		}
-
-		temperature10, err := strconv.Atoi(word1[:word1len-2])
-		if err != nil {
-			panic(err)
-		}
-
-		temperature1 := word1[word1len-1] - '0'
-		temperature := 10*temperature10 + sgn*int(temperature1)
 
 		resIt, ok := res[city]
 		if !ok {
@@ -245,34 +259,69 @@ func run2(r io.Reader) map[string]*Statistics[int] {
 }
 ```
 
-I replace `strconv.ParseFloat()` with three instructions:
+`parse.go`
+
+```go
+package main
+
+import (
+	"strconv"
+)
+
+func parseDigitsFromString(digits string) int {
+	temperature10, err := strconv.Atoi(digits[:len(digits)-2])
+	if err != nil {
+		panic(err)
+	}
+
+	temperature1 := digits[len(digits)-1] - '0'
+	return 10*temperature10 + int(temperature1)
+}
+```
+
+I replace `strconv.ParseFloat()` with `parseDigitsFromString()`.
+It consists of three instructions:
 
 1.  Check sign. (`-`)
 2.  Read digits before decimal point. (`strconv.Atoi()`)
 3.  Read digit after decimal point. (`0`)
 
+Instead of floating-point numbers with a single decimal digit, I keep track of metrics as integer numbers in tenths of a degree.
+This will also streamline the arithmetics.
+
 ```
 File: one-billion-row-challenge-golang.test
-Build ID: d5df05dd99e5d2dcd493355c59cdbeec02a734c2
+Build ID: 72bca091f466609dc907466886cde8910df298d4
 Type: cpu
-Time: 2026-01-14 14:39:50 CET
-Duration: 167.06s, Total samples = 180.29s (107.92%)
-Showing nodes accounting for 161.53s, 89.59% of 180.29s total
-Dropped 341 nodes (cum <= 0.90s)
+Time: 2026-01-15 21:24:18 CET
+Duration: 81.71s, Total samples = 94.55s (115.72%)
+Showing nodes accounting for 84.37s, 89.23% of 94.55s total
+Dropped 284 nodes (cum <= 0.47s)
       flat  flat%   sum%        cum   cum%
-    11.58s  6.42%  6.42%     42.05s 23.32%  runtime.mapaccess2_faststr
-    10.66s  5.91% 12.34%     63.09s 34.99%  strings.genSplit
-    10.50s  5.82% 18.16%     10.50s  5.82%  runtime.nextFreeFast (inline)
-    10.30s  5.71% 23.87%    168.81s 93.63%  github.com/hy144328/one-billion-row-challenge-golang.run2
-     9.70s  5.38% 29.25%      9.70s  5.38%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
-     8.46s  4.69% 33.95%      8.46s  4.69%  aeshashbody
-     7.59s  4.21% 38.16%     53.09s 29.45%  runtime.mallocgc
-     7.57s  4.20% 42.35%     29.02s 16.10%  runtime.mallocgcSmallScanNoHeader
-     6.85s  3.80% 46.15%      6.85s  3.80%  indexbytebody
-     6.81s  3.78% 49.93%      6.81s  3.78%  internal/runtime/syscall.Syscall6
+         0     0%     0%     83.30s 88.10%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun2
+     3.66s  3.87%  3.87%     83.30s 88.10%  github.com/hy144328/one-billion-row-challenge-golang.run2
+         0     0%  3.87%     83.30s 88.10%  testing.(*B).run1.func1
+         0     0%  3.87%     83.30s 88.10%  testing.(*B).runN
+     0.06s 0.063%  3.93%     34.29s 36.27%  strings.Split (inline)
+     4.15s  4.39%  8.32%     34.23s 36.20%  strings.genSplit
+     5.48s  5.80% 14.12%     23.88s 25.26%  runtime.mapaccess2_faststr
+     2.36s  2.50% 16.62%     22.88s 24.20%  runtime.mallocgc
+     1.33s  1.41% 18.02%     16.62s 17.58%  runtime.makeslice
+     3.03s  3.20% 21.23%     13.43s 14.20%  runtime.mallocgcSmallScanNoHeader
+     0.03s 0.032% 21.26%     10.39s 10.99%  runtime.systemstack
+     0.03s 0.032% 21.29%      9.59s 10.14%  bufio.(*Scanner).Text (inline)
+     1.04s  1.10% 22.39%      9.56s 10.11%  runtime.slicebytetostring
+     1.72s  1.82% 24.21%      8.35s  8.83%  bufio.(*Scanner).Scan
+     1.42s  1.50% 25.71%      7.68s  8.12%  strings.Count
+         0     0% 25.71%      6.78s  7.17%  runtime.gcBgMarkWorker
+     6.18s  6.54% 32.25%      6.18s  6.54%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+         0     0% 32.25%      6.01s  6.36%  runtime.gcBgMarkWorker.func2
+     0.08s 0.085% 32.33%      5.99s  6.34%  runtime.gcDrain
+     5.94s  6.28% 38.61%      5.94s  6.28%  runtime.nextFreeFast (inline)
 ```
 
-The program takes 167.06 seconds, which is a 12% improvement.
+The program takes 81.71 seconds, which is an 11% improvement.
+The wall time goes down from 16.43 seconds for `strconv.ParseFloat()` to 3.53 seconds for `parseDigitsFromString()` (not shown).
 This was easy enough.
 
 ## Optimization #3: Substrings.
@@ -288,18 +337,12 @@ func run3(r io.Reader) map[string]*Statistics[int] {
 		lineIt := scanner.Text()
 		sepIdx := strings.IndexByte(lineIt, ';')
 
-		sgn := 1
+		var temperature int
 		if lineIt[sepIdx+1] == '-' {
-			sgn = -1
+			temperature = -parseDigitsFromString(lineIt[sepIdx+2:])
+		} else {
+			temperature = parseDigitsFromString(lineIt[sepIdx+1:])
 		}
-
-		temperature10, err := strconv.Atoi(lineIt[sepIdx+1 : len(lineIt)-2])
-		if err != nil {
-			panic(err)
-		}
-
-		temperature1 := lineIt[len(lineIt)-1] - '0'
-		temperature := 10*temperature10 + sgn*int(temperature1)
 
 		resIt, ok := res[lineIt[:sepIdx]]
 		if !ok {
@@ -327,38 +370,37 @@ Note that I pass a substring directly to the respective function call to give th
 
 ```
 File: one-billion-row-challenge-golang.test
-Build ID: d5df05dd99e5d2dcd493355c59cdbeec02a734c2
+Build ID: 72bca091f466609dc907466886cde8910df298d4
 Type: cpu
-Time: 2026-01-14 14:42:37 CET
-Duration: 88.28s, Total samples = 89.65s (101.55%)
-Showing nodes accounting for 82.65s, 92.19% of 89.65s total
-Dropped 237 nodes (cum <= 0.45s)
+Time: 2026-01-15 21:25:40 CET
+Duration: 50.22s, Total samples = 54.89s (109.29%)
+Showing nodes accounting for 50.46s, 91.93% of 54.89s total
+Dropped 234 nodes (cum <= 0.27s)
       flat  flat%   sum%        cum   cum%
-     8.36s  9.33%  9.33%     29.62s 33.04%  runtime.mapaccess2_faststr
-     8.01s  8.93% 18.26%      8.01s  8.93%  indexbytebody
-     7.59s  8.47% 26.73%     86.57s 96.56%  github.com/hy144328/one-billion-row-challenge-golang.run3
-     7.27s  8.11% 34.84%      7.27s  8.11%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
-     6.11s  6.82% 41.65%      6.11s  6.82%  internal/runtime/syscall.Syscall6
-     5.01s  5.59% 47.24%     18.31s 20.42%  bufio.(*Scanner).Scan
-     4.86s  5.42% 52.66%      4.86s  5.42%  strconv.Atoi
-     4.41s  4.92% 57.58%      4.41s  4.92%  aeshashbody
-     4.20s  4.68% 62.26%      8.52s  9.50%  runtime.mallocgcTiny
-     3.41s  3.80% 66.07%      3.41s  3.80%  memeqbody
-     3.03s  3.38% 69.45%      3.03s  3.38%  runtime.nextFreeFast (inline)
-     2.84s  3.17% 72.62%     18.43s 20.56%  runtime.slicebytetostring
-     2.62s  2.92% 75.54%     13.72s 15.30%  runtime.mallocgc
-     1.99s  2.22% 77.76%      6.01s  6.70%  bufio.ScanLines
-     1.90s  2.12% 79.88%      1.90s  2.12%  runtime.memmove
-     1.58s  1.76% 81.64%      1.58s  1.76%  internal/runtime/maps.(*groupReference).key (inline)
-     1.19s  1.33% 82.97%      1.19s  1.33%  internal/runtime/maps.(*Map).directoryAt (inline)
-     0.89s  0.99% 83.96%      2.33s  2.60%  runtime.mallocgcSmallNoscan
-     0.79s  0.88% 84.84%     19.22s 21.44%  bufio.(*Scanner).Text (inline)
-     0.68s  0.76% 85.60%      0.68s  0.76%  internal/bytealg.IndexByteString
+         0     0%     0%     50.54s 92.08%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun3
+     3.79s  6.90%  6.90%     50.54s 92.08%  github.com/hy144328/one-billion-row-challenge-golang.run3
+         0     0%  6.90%     50.54s 92.08%  testing.(*B).run1.func1
+         0     0%  6.90%     50.54s 92.08%  testing.(*B).runN
+     5.40s  9.84% 16.74%     19.75s 35.98%  runtime.mapaccess2_faststr
+     0.18s  0.33% 17.07%      8.49s 15.47%  bufio.(*Scanner).Text (inline)
+     1.11s  2.02% 19.09%      8.31s 15.14%  runtime.slicebytetostring
+     1.71s  3.12% 22.21%      7.38s 13.45%  bufio.(*Scanner).Scan
+     6.40s 11.66% 33.87%      6.40s 11.66%  indexbytebody
+     0.07s  0.13% 34.00%      6.34s 11.55%  internal/stringslite.IndexByte (inline)
+         0     0% 34.00%      6.34s 11.55%  strings.IndexByte (inline)
+     0.97s  1.77% 35.76%      6.30s 11.48%  runtime.mallocgc
+     5.02s  9.15% 44.91%      5.02s  9.15%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     1.79s  3.26% 48.17%      4.79s  8.73%  github.com/hy144328/one-billion-row-challenge-golang.parseDigitsFromString
+     2.08s  3.79% 51.96%      3.91s  7.12%  runtime.mallocgcTiny
+     0.02s 0.036% 51.99%      3.90s  7.11%  runtime.systemstack
+     0.05s 0.091% 52.09%      3.26s  5.94%  os.(*File).Read
+     0.01s 0.018% 52.10%      3.18s  5.79%  os.(*File).read (inline)
+     0.03s 0.055% 52.16%      3.17s  5.78%  internal/poll.(*FD).Read
+         0     0% 52.16%      3.09s  5.63%  internal/poll.ignoringEINTRIO (inline)
 ```
 
-The program takes 88.28 seconds, which is a 47% improvement!
+The program takes 50.22 seconds, which is a 39% improvement.
 This is the largest relative improvement so far.
-By the way, I am now showing the top twenty instead of the top ten because the distributions are becoming flatter.
 
 ## Optimization #4: Byte slices.
 
@@ -373,18 +415,12 @@ func run4(r io.Reader) map[string]*Statistics[int] {
 		lineIt := scanner.Bytes()
 		sepIdx := bytes.IndexByte(lineIt, ';')
 
-		sgn := 1
+		var temperature int
 		if lineIt[sepIdx+1] == '-' {
-			sgn = -1
+			temperature = -parseDigitsFromBytes(lineIt[sepIdx+2:])
+		} else {
+			temperature = parseDigitsFromBytes(lineIt[sepIdx+1:])
 		}
-
-		temperature10, err := strconv.Atoi(string(lineIt[sepIdx+1 : len(lineIt)-2]))
-		if err != nil {
-			panic(err)
-		}
-
-		temperature1 := lineIt[len(lineIt)-1] - '0'
-		temperature := 10*temperature10 + sgn*int(temperature1)
 
 		resIt, ok := res[string(lineIt[:sepIdx])]
 		if !ok {
@@ -406,44 +442,321 @@ func run4(r io.Reader) map[string]*Statistics[int] {
 }
 ```
 
-I replace `scanner.Text()` with `scanner.Bytes()`, and `strings.IndexByte()` with `bytes.IndexByte()`.
+`parse.go`:
+
+```go
+func parseDigitsFromBytes(digits []byte) int {
+	switch len(digits) {
+	case 3:
+		return 10*int(digits[0]-'0') + int(digits[2]-'0')
+	case 4:
+		return 100*int(digits[0]-'0') + 10*int(digits[1]-'0') + int(digits[3]-'0')
+	default:
+		panic(string(digits))
+	}
+}
+```
+
+The decision to work with byte slices instead of strings entails the following three changes:
+
+*   Replace `scanner.Text()` with `scanner.Bytes()`.
+*   Replace `strings.IndexByte()` with `bytes.IndexByte()`.
+*   Replace `parseDigitsFromString()` with `parseDigitsFromBytes()`.
+
+The implementation of `parseDigitsFromBytes()` is fundamentally different from the implementation of `parseDigitsFromString()`.
+The implementation of `parseDigitsFromString()` relies on `strconv.Atoi()` accepting strings but not byte slices.
+Alternatively, I leverage the specific format of the one-billion row challenge.
+I unwrap all loops, and the control flow is simplified to two questions:
+
+1.  Is there a negative sign?
+2.  Is the temperature in the single-digit or double-digits range?
+
 The hash map is still working with string keys.
 Again, I pass byte slices directly to functions to give the compiler opportunities for optimizations under the hood.
 
 ```
 File: one-billion-row-challenge-golang.test
-Build ID: d5df05dd99e5d2dcd493355c59cdbeec02a734c2
+Build ID: 72bca091f466609dc907466886cde8910df298d4
 Type: cpu
-Time: 2026-01-14 14:44:06 CET
-Duration: 54.42s, Total samples = 51.99s (95.54%)
-Showing nodes accounting for 51.01s, 98.12% of 51.99s total
-Dropped 33 nodes (cum <= 0.26s)
+Time: 2026-01-15 21:26:31 CET
+Duration: 27.17s, Total samples = 27.08s (99.68%)
+Showing nodes accounting for 26.71s, 98.63% of 27.08s total
+Dropped 28 nodes (cum <= 0.14s)
       flat  flat%   sum%        cum   cum%
-     6.18s 11.89% 11.89%     51.96s 99.94%  github.com/hy144328/one-billion-row-challenge-golang.run4
-     5.56s 10.69% 22.58%     21.40s 41.16%  runtime.mapaccess2_faststr
-     5.10s  9.81% 32.39%      5.10s  9.81%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
-     4.68s  9.00% 41.39%      4.68s  9.00%  internal/runtime/syscall.Syscall6
-     4.25s  8.17% 49.57%     14.90s 28.66%  bufio.(*Scanner).Scan
-     3.70s  7.12% 56.68%      3.70s  7.12%  aeshashbody
-     3.67s  7.06% 63.74%      3.67s  7.06%  indexbytebody
-     3.37s  6.48% 70.23%      3.37s  6.48%  strconv.Atoi
-     2.11s  4.06% 74.28%      2.11s  4.06%  memeqbody
-     1.79s  3.44% 77.73%      2.60s  5.00%  runtime.slicebytetostring
-     1.72s  3.31% 81.03%      5.19s  9.98%  bufio.ScanLines
-     1.45s  2.79% 83.82%      1.45s  2.79%  internal/runtime/maps.(*groupReference).key (inline)
-     1.41s  2.71% 86.54%      5.96s 11.46%  bytes.IndexByte (inline)
-     0.88s  1.69% 88.23%      0.88s  1.69%  internal/bytealg.IndexByte
-     0.83s  1.60% 89.82%      0.83s  1.60%  internal/runtime/maps.(*Map).directoryAt (inline)
-     0.83s  1.60% 91.42%      0.83s  1.60%  runtime.memmove
-     0.69s  1.33% 92.75%      0.69s  1.33%  bufio.(*Scanner).Bytes (inline)
-     0.51s  0.98% 93.73%      0.51s  0.98%  runtime.strhash
-     0.44s  0.85% 94.58%      0.44s  0.85%  internal/runtime/maps.h1 (inline)
-     0.42s  0.81% 95.38%      0.42s  0.81%  internal/runtime/maps.(*Map).directoryIndex (inline)
+         0     0%     0%     27.04s 99.85%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun4
+     3.10s 11.45% 11.45%     27.04s 99.85%  github.com/hy144328/one-billion-row-challenge-golang.run4
+         0     0% 11.45%     27.04s 99.85%  testing.(*B).run1.func1
+         0     0% 11.45%     27.04s 99.85%  testing.(*B).runN
+     4.95s 18.28% 29.73%     15.40s 56.87%  runtime.mapaccess2_faststr
+     1.52s  5.61% 35.34%      6.27s 23.15%  bufio.(*Scanner).Scan
+     3.75s 13.85% 49.19%      3.75s 13.85%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.63s  2.33% 51.51%      2.50s  9.23%  bytes.IndexByte (inline)
+     0.03s  0.11% 51.62%      2.49s  9.19%  os.(*File).Read
+     0.02s 0.074% 51.70%      2.44s  9.01%  internal/poll.(*FD).Read
+         0     0% 51.70%      2.44s  9.01%  os.(*File).read (inline)
+         0     0% 51.70%      2.39s  8.83%  internal/poll.ignoringEINTRIO (inline)
+     0.03s  0.11% 51.81%      2.39s  8.83%  syscall.Read (inline)
+     0.03s  0.11% 51.92%      2.36s  8.71%  syscall.read
+     0.06s  0.22% 52.14%      2.33s  8.60%  syscall.Syscall
+     0.04s  0.15% 52.29%      2.19s  8.09%  syscall.RawSyscall6
+     2.15s  7.94% 60.23%      2.15s  7.94%  internal/runtime/syscall.Syscall6
+     0.55s  2.03% 62.26%      2.04s  7.53%  bufio.ScanLines
+     1.52s  5.61% 67.87%      1.52s  5.61%  aeshashbody
+     1.52s  5.61% 73.49%      1.52s  5.61%  indexbytebody
 ```
 
-The program takes 54.42 seconds, which is a 38% improvement.
+The program takes 27.17 seconds, which is a 46% improvement.
+Again, this is the accumulation of multiple changes.
+For instance:
+
+*   The wall time goes down from 6.34 seconds for `strings.IndexByte()` to 2.50 seconds for `bytes.IndexByte()`.
+*   The wall time goes down from 4.79 seconds for `parseDigitsFromString()` to 0.97 seconds for `parseDigitsFromBytes()`.
+
+## Optimization #5. Buffered reader.
+
+`main.go`:
+
+```go
+func run5(r io.Reader) map[string]*Statistics[int] {
+	res := make(map[string]*Statistics[int], maxCities)
+	reader := bufio.NewReader(r)
+
+	for {
+		lineIt, err := reader.ReadSlice('\n')
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		sepIdx := bytes.IndexByte(lineIt, ';')
+
+		var temperature int
+		if lineIt[sepIdx+1] == '-' {
+			temperature = -parseDigitsFromBytes(lineIt[sepIdx+2 : len(lineIt)-1])
+		} else {
+			temperature = parseDigitsFromBytes(lineIt[sepIdx+1 : len(lineIt)-1])
+		}
+
+		resIt, ok := res[string(lineIt[:sepIdx])]
+		if !ok {
+			res[string(lineIt[:sepIdx])] = &Statistics[int]{
+				Cnt: 1,
+				Max: temperature,
+				Min: temperature,
+				Sum: temperature,
+			}
+		} else {
+			resIt.Cnt += 1
+			resIt.Max = max(resIt.Max, temperature)
+			resIt.Min = min(resIt.Min, temperature)
+			resIt.Sum += temperature
+		}
+	}
+
+	return res
+}
+```
+
+I replace `bufio.Scanner` with `bufio.Reader`.
+I expect there to be minimal differences in terms of performance.
+
+```
+File: one-billion-row-challenge-golang.test
+Build ID: 72bca091f466609dc907466886cde8910df298d4
+Type: cpu
+Time: 2026-01-15 21:26:58 CET
+Duration: 24.98s, Total samples = 24.89s (99.64%)
+Showing nodes accounting for 24.62s, 98.92% of 24.89s total
+Dropped 33 nodes (cum <= 0.12s)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     24.85s 99.84%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun5
+     2.36s  9.48%  9.48%     24.85s 99.84%  github.com/hy144328/one-billion-row-challenge-golang.run5
+         0     0%  9.48%     24.85s 99.84%  testing.(*B).run1.func1
+         0     0%  9.48%     24.85s 99.84%  testing.(*B).runN
+     4.71s 18.92% 28.40%     15.54s 62.43%  runtime.mapaccess2_faststr
+     1.62s  6.51% 34.91%      4.82s 19.37%  bufio.(*Reader).ReadSlice
+     3.99s 16.03% 50.94%      3.99s 16.03%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+         0     0% 50.94%      2.26s  9.08%  bufio.(*Reader).fill
+     0.04s  0.16% 51.10%      2.26s  9.08%  os.(*File).Read
+         0     0% 51.10%      2.21s  8.88%  internal/poll.(*FD).Read
+         0     0% 51.10%      2.21s  8.88%  os.(*File).read (inline)
+     0.33s  1.33% 52.43%      2.20s  8.84%  bytes.IndexByte (inline)
+         0     0% 52.43%      2.18s  8.76%  internal/poll.ignoringEINTRIO (inline)
+     0.01s  0.04% 52.47%      2.18s  8.76%  syscall.Read (inline)
+     0.01s  0.04% 52.51%      2.17s  8.72%  syscall.read
+     0.03s  0.12% 52.63%      2.16s  8.68%  syscall.Syscall
+     0.03s  0.12% 52.75%      1.97s  7.91%  syscall.RawSyscall6
+     1.94s  7.79% 60.55%      1.94s  7.79%  internal/runtime/syscall.Syscall6
+     1.75s  7.03% 67.58%      1.75s  7.03%  aeshashbody
+     1.68s  6.75% 74.33%      1.68s  6.75%  memeqbody
+```
+
+The program takes 24.98 seconds, which is an 8% improvement.
+This is modest but not too bad!
+The wall time goes down from 6.27 seconds for `scanner.Scan()` to 4.82 seconds for `reader.ReadSlice()`.
+
+## Optimization #6. Custom hash map.
+
+`main.go`:
+
+```go
+func run6(r io.Reader) *BytesMap[Statistics[int]] {
+	res := NewBytesMap[Statistics[int]](noRegisters)
+	reader := bufio.NewReader(r)
+
+	for {
+		lineIt, err := reader.ReadSlice('\n')
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		sepIdx := bytes.IndexByte(lineIt, ';')
+		city := lineIt[:sepIdx]
+
+		var temperature int
+		if lineIt[sepIdx+1] == '-' {
+			temperature = -parseDigitsFromBytes(lineIt[sepIdx+2 : len(lineIt)-1])
+		} else {
+			temperature = parseDigitsFromBytes(lineIt[sepIdx+1 : len(lineIt)-1])
+		}
+
+		resIt, ok := res.GetOrCreate(city)
+		if !ok {
+			resIt.Cnt = 1
+			resIt.Max = temperature
+			resIt.Min = temperature
+			resIt.Sum = temperature
+		} else {
+			resIt.Cnt += 1
+			resIt.Max = max(resIt.Max, temperature)
+			resIt.Min = min(resIt.Min, temperature)
+			resIt.Sum += temperature
+		}
+	}
+
+	return res
+}
+```
+
+`hash_map.go`:
+
+```go
+package main
+
+import (
+	"bytes"
+	"hash/maphash"
+)
+
+type Register[T any] struct {
+	KeyLen int
+	Hash   uint64
+	Key    [100]byte
+	Value  T
+}
+
+type BytesMap[T any] struct {
+	noRegisters uint64
+	registers   []Register[T]
+	seed        maphash.Seed
+}
+
+func NewBytesMap[T any](noRegisters int) *BytesMap[T] {
+	if noRegisters&(noRegisters-1) != 0 {
+		panic("not power of 2")
+	}
+
+	return &BytesMap[T]{
+		noRegisters: uint64(noRegisters),
+		registers:   make([]Register[T], noRegisters),
+		seed:        maphash.MakeSeed(),
+	}
+}
+
+func (m *BytesMap[T]) GetOrCreate(k []byte) (*T, bool) {
+	h := maphash.Bytes(m.seed, k)
+
+	for i := h; i < h+m.noRegisters; i++ {
+		idx := i & (m.noRegisters - 1)
+
+		if klen := m.registers[idx].KeyLen; klen == 0 {
+			m.registers[idx].KeyLen = len(k)
+			m.registers[idx].Hash = h
+			copy(m.registers[idx].Key[:], k)
+			return &m.registers[idx].Value, false
+		} else if h == m.registers[idx].Hash && bytes.Equal(m.registers[idx].Key[:klen], k) {
+			return &m.registers[idx].Value, true
+		}
+	}
+
+	panic("registers full")
+}
+
+func (m *BytesMap[T]) ToMap() map[string]*T {
+	res := make(map[string]*T, maxCities)
+
+	for i := range m.registers {
+		if klen := m.registers[i].KeyLen; klen > 0 {
+			res[string(m.registers[i].Key[:klen])] = &m.registers[i].Value
+		}
+	}
+
+	return res
+}
+```
+
+In short, I implemented a custom hash map with open addressing and linear probing.
+City names are held by byte arrays with a fixed size of 100 in agreement with the rules and limits.
+The hash function is taken from the `hash/maphash` standard library.
+The number of registers is 1,048,576, which is significantly larger than 10,000, the number of cities, in order to minimize the number of hash collisions.
+In general, we work with powers of two and binary operations where possible.
+
+```
+File: one-billion-row-challenge-golang.test
+Build ID: 72bca091f466609dc907466886cde8910df298d4
+Type: cpu
+Time: 2026-01-15 21:27:23 CET
+Duration: 26.56s, Total samples = 26.45s (99.57%)
+Showing nodes accounting for 26.23s, 99.17% of 26.45s total
+Dropped 29 nodes (cum <= 0.13s)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     26.43s 99.92%  github.com/hy144328/one-billion-row-challenge-golang.BenchmarkRun6
+         0     0%     0%     26.43s 99.92%  testing.(*B).run1.func1
+         0     0%     0%     26.43s 99.92%  testing.(*B).runN
+     2.65s 10.02% 10.02%     26.41s 99.85%  github.com/hy144328/one-billion-row-challenge-golang.run6
+     7.14s 26.99% 37.01%     13.02s 49.22%  github.com/hy144328/one-billion-row-challenge-golang.(*BytesMap[go.shape.struct { Cnt int; Max int; Min int; Sum int }]).GetOrCreate
+     1.79s  6.77% 43.78%      6.56s 24.80%  bufio.(*Reader).ReadSlice
+     0.31s  1.17% 44.95%      4.61s 17.43%  bytes.IndexByte (inline)
+     3.74s 14.14% 59.09%      3.74s 14.14%  indexbytebody
+     0.26s  0.98% 60.08%      3.21s 12.14%  bytes.Equal (inline)
+     2.80s 10.59% 70.66%      2.80s 10.59%  memeqbody
+     0.42s  1.59% 72.25%      2.67s 10.09%  hash/maphash.Bytes
+     0.06s  0.23% 72.48%      2.43s  9.19%  bufio.(*Reader).fill
+     0.01s 0.038% 72.51%      2.36s  8.92%  os.(*File).Read
+         0     0% 72.51%      2.34s  8.85%  internal/poll.(*FD).Read
+         0     0% 72.51%      2.34s  8.85%  os.(*File).read (inline)
+         0     0% 72.51%      2.33s  8.81%  internal/poll.ignoringEINTRIO (inline)
+     0.02s 0.076% 72.59%      2.33s  8.81%  syscall.Read (inline)
+     0.03s  0.11% 72.70%      2.31s  8.73%  syscall.read
+     0.01s 0.038% 72.74%      2.28s  8.62%  syscall.Syscall
+     0.14s  0.53% 73.27%      2.25s  8.51%  hash/maphash.rthash (inline)
+```
+
+The results are mixed.
+On the one hand, the wall time goes down from 15.54 seconds for accessing from hash maps to 13.02 seconds for `BytesMap.GetOrCreate()`.
+On the other hand, the program now takes 26.56 seconds in total, which is actually a decline of 6%.
+More specifically:
+
+*   The wall time for `reader.ReadSlice()` goes up from 4.82 seconds to 6.56 seconds.
+*   The wall time for `parseDigitsFromBytes()` goes up from 0.87 seconds to 1.91 seconds.
+
+The fact that a changed line of code improved while unchanged lines deteriorated is evidence for register pressure and spill.
+This is beyond the scope of the current blog post.
 
 ## Conclusion
 
 Idiomatic Go.
-Python
+Python.
