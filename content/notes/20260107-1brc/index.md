@@ -1,7 +1,7 @@
 +++
 date = '2026-01-07T01:28:00+01:00'
 draft = true
-title = 'One-billion row challenge in Go'
+title = 'One-billion row challenge in Go, part I: Single core.'
 +++
 
 Whenever I run a large calculation in [Apache Spark](https://spark.apache.org/), I wonder if it really has to take so long.
