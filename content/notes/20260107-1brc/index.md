@@ -510,7 +510,7 @@ Again, this is the accumulation of multiple changes.
 For instance:
 
 *   The wall time goes down from 6.34 seconds for `strings.IndexByte()` to 2.50 seconds for `bytes.IndexByte()`.
-*   The wall time goes down from 4.79 seconds for `parseDigitsFromString()` to 0.97 seconds for `parseDigitsFromBytes()`.
+*   The wall time goes down from 4.79 seconds for `parseDigitsFromString()` to 0.97 seconds for `parseDigitsFromBytes()` (not shown).
 
 ## Optimization #5. Buffered reader.
 
@@ -751,7 +751,7 @@ On the other hand, the program now takes 26.56 seconds in total, which is actual
 More specifically:
 
 *   The wall time for `reader.ReadSlice()` goes up from 4.82 seconds to 6.56 seconds.
-*   The wall time for `parseDigitsFromBytes()` goes up from 0.87 seconds to 1.91 seconds.
+*   The wall time for `parseDigitsFromBytes()` goes up from 0.87 seconds (not shown) to 1.91 seconds (not shown).
 
 The fact that a changed line of code improved while unchanged lines deteriorated is evidence for register pressure and spill.
 This is beyond the scope of the current blog post.
