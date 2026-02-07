@@ -1,7 +1,10 @@
 +++
 date = '2026-01-21T01:06:42+01:00'
 title = 'One-billion row challenge in Go, part II: Parallel execution.'
+tags = ['golang']
 +++
+
+{{< badge >}}golang{{< /badge >}}
 
 Enough of sequential execution!
 This time, I am trying to run faster by making my code embarrassingly parallel.

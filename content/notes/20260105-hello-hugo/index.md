@@ -2,6 +2,7 @@
 date = '2026-01-05T01:38:00+01:00'
 title = 'Hello, Hugo!'
 +++
+
 New year, new attempt to revitalize my blog.
 Over the holidays, I looked into [local-first software](https://www.inkandswitch.com/essay/local-first/).
 Perhaps, this made me look at my existing (now defunct) [WordPress blog](https://findingrosebud.wordpress.com/) differently.

@@ -1,7 +1,10 @@
 +++
 date = '2026-01-07T01:28:00+01:00'
 title = 'One-billion row challenge in Go, part I: Sequential execution.'
+tags = ['golang']
 +++
+
+{{< badge >}}golang{{< /badge >}}
 
 Whenever I run a large calculation in [Apache Spark](https://spark.apache.org/), I wonder if it really has to take so long.
 I am familiar with [back-of-the-envelope estimation](https://abseil.io/fast/hints.html#estimation).

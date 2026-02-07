@@ -1,7 +1,10 @@
 +++
 date = '2026-02-06T23:45:03+01:00'
 title = 'Advent of Code 2025, day 10: Diophantine equations.'
+tags = ['golang']
 +++
+
+{{< badge >}}golang{{< /badge >}}
 
 I like to participate in [Advent of Code](https://adventofcode.com/) to pick up new languages.
 In [December](https://adventofcode.com/2025), I decided to solve the daily problems in Go.
