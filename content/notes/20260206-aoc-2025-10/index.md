@@ -1,8 +1,8 @@
 +++
 date = '2026-02-06T23:45:03+01:00'
-draft = true
 title = 'Advent of Code 2025, day 10: Diophantine equations.'
 +++
+
 I like to participate in [Advent of Code](https://adventofcode.com/) to pick up new languages.
 In [December](https://adventofcode.com/2025), I decided to solve the daily problems in Go.
 Difficulty increased as the month progressed but I found it quite straightforward overall.
@@ -12,6 +12,8 @@ Unfortunately, the state space proves too large.
 Instead, [most solutions](https://www.reddit.com/r/adventofcode/comments/1pity70/2025_day_10_solutions/) resort to integer linear programming.
 Alternatively, [u/tenthmascot](https://www.reddit.com/user/tenthmascot/) shared a really elegant solution on [Reddit](https://www.reddit.com/r/adventofcode/comments/1pk87hl/2025_day_10_part_2_bifurcate_your_way_to_victory/).
 This is the topic of this blog post.
+
+{{< gitlab projectID="59934121" >}}
 
 ## Part one
 

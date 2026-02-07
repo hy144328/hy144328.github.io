@@ -2,11 +2,14 @@
 date = '2026-01-21T01:06:42+01:00'
 title = 'One-billion row challenge in Go, part II: Parallel execution.'
 +++
+
 Enough of sequential execution!
 This time, I am trying to run faster by making my code embarrassingly parallel.
 I am introducing worker routines that continue to interface via the `io.Reader` interface.
 The main routine coordinates the worker routines with as little overhead as possible.
 Finally, I am going to analyze the speed-up in terms of strong scaling.
+
+{{< github repo="hy144328/one-billion-row-challenge" showThumbnail=false >}}
 
 ## Worker routines
 

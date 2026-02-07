@@ -12,6 +12,8 @@ The winners have already been determined with the [fastest submissions](https://
 I would not have been a contender, in Java or any other programming language, so I am not feeling competitive one way or another.
 Nevertheless, I want to give it a try!
 
+{{< github repo="hy144328/one-billion-row-challenge" showThumbnail=false >}}
+
 ## Baseline implementation
 
 For the baseline implementation, I am attempting to write idiomatic Go without any premature optimization.
