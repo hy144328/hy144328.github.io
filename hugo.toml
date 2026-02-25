@@ -2,6 +2,9 @@ baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Hans Yu'
 
+[caches.images]
+dir = ':cacheDir/images'
+
 [[menus.main]]
 name = 'Home'
 pageRef = '/'
