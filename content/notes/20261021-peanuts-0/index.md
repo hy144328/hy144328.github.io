@@ -1,6 +1,6 @@
 +++
 date = '2026-10-21T22:17:01+02:00'
-title = 'Foundations of analysis: Prelude'
+title = 'Foundations of analysis in Lean: Prelude'
 tags = ['lean', 'math']
 +++
 
